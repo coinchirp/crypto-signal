@@ -1,5 +1,4 @@
-"""
-Load configuration
+"""Load configuration from default-config.json or env
 """
 
 import os
@@ -7,82 +6,76 @@ import json
 import distutils.util
 from string import whitespace
 
-import ccxt
+import ccxt # Only uses ccxt to get exchanges, never queries them.
 
 class Configuration():
+    """Parses the various forms of configuration to create the config objects.
+    """
     def __init__(self):
+        """Initializes the Configuration class
+        """
+
         config = json.load(open('default-config.json'))
 
         for exchange in ccxt.exchanges:
             if not exchange in config['exchanges']:
                 config['exchanges'][exchange] = {
-                    'required': {'enabled': False},
-                    'optional': {}
+                    'required': {
+                        'enabled': False
                     }
+                }
 
-        secrets_file = 'secrets.json'
-        secrets = json.load(open(secrets_file)) if os.path.isfile(secrets_file) else {}
-        config.update(secrets)
+        user_config_file = 'config.json'
+        user_config = json.load(open(user_config_file)) if os.path.isfile(user_config_file) else {}
+        config.update(user_config)
 
-        self.settings = self.__merge_setting_opts(config['settings'])
-        self.exchange_config = self.__merge_exchange_opts(config['exchanges'])
-        self.notifier_config = self.__merge_notifier_opts(config['notifiers'])
-        self.behaviour_config = {}
+        config['settings'] = self.__parse_config(config['settings'], 'SETTINGS')
+        self.settings = config['settings']
 
-    def __merge_setting_opts(self, settings):
-        for setting_key, setting_val in settings.items():
-            env_var_name = setting_key.upper()
-            new_val = os.environ.get(env_var_name, setting_val)
-            if isinstance(setting_val, list) and not isinstance(new_val, list):
-                settings[setting_key] = self.__csv_to_list(new_val)
-            else:
-                settings[setting_key] = new_val
-        return settings
+        config['database'] = self.__parse_config(config['database'], 'DATABASE')
+        self.database = config['database']
 
-    def __merge_exchange_opts(self, exchange_settings):
-        for exchange_key, exchange_val in exchange_settings.items():
-            for option_key, option_val in exchange_settings[exchange_key].items():
-                for setting_key, setting_val in exchange_settings[exchange_key][option_key].items():
-                    env_var_name = '_'.join([
-                        exchange_key.upper(),
-                        option_key.upper(), setting_key.upper()
-                        ])
-                    new_val = os.environ.get(env_var_name, setting_val)
-                    if setting_key == "enabled" and isinstance(new_val, str):
-                        new_val = bool(distutils.util.strtobool(new_val))
-                    if isinstance(setting_val, list) and not isinstance(new_val, list):
-                        exchange_settings[exchange_key][option_key][setting_key] = self.__csv_to_list(new_val)
-                    else:
-                        exchange_settings[exchange_key][option_key][setting_key] = new_val
-        return exchange_settings
+        config['exchanges'] = self.__parse_config(config['exchanges'], 'EXCHANGES')
+        self.exchanges = config['exchanges']
 
-    def __merge_notifier_opts(self, notifier_settings):
-        for notifier_key, notifier_val in notifier_settings.items():
-            for option_key, option_val in notifier_settings[notifier_key].items():
-                for setting_key, setting_val in notifier_settings[notifier_key][option_key].items():
-                    env_var_name = '_'.join([
-                        notifier_key.upper(),
-                        option_key.upper(),
-                        setting_key.upper()])
-                    new_val = os.environ.get(env_var_name, setting_val)
-                    if isinstance(setting_val, list) and not isinstance(new_val, list):
-                        notifier_settings[notifier_key][option_key][setting_key] = self.__csv_to_list(new_val)
-                    else:
-                        notifier_settings[notifier_key][option_key][setting_key] = new_val
-        return notifier_settings
+        config['notifiers'] = self.__parse_config(config['notifiers'], 'NOTIFIERS')
+        self.notifiers = config['notifiers']
 
+        config['behaviours'] = self.__parse_config(config['behaviours'], 'BEHAVIOURS')
+        self.behaviours = config['behaviours']
 
-    def __csv_to_list(self, comma_separated_string):
-        return comma_separated_string.translate(str.maketrans('', '', whitespace)).split(",")
+    def __parse_config(self, config_fragment, base_path=""):
+        for key in config_fragment:
 
-    def fetch_settings(self):
-        return self.settings
+            if isinstance(config_fragment[key], str):
+                key_path = '_'.join([base_path, key.upper()])
+                config_fragment[key] = str(os.environ.get(key_path, config_fragment[key]))
 
-    def fetch_exchange_config(self):
-        return self.exchange_config
+            if isinstance(config_fragment[key], dict):
+                key_path = '_'.join([base_path, key.upper()])
+                config_fragment[key] = self.__parse_config(config_fragment[key], key_path)
 
-    def fetch_notifier_config(self):
-        return self.notifier_config
+            if isinstance(config_fragment[key], int):
+                key_path = '_'.join([base_path, key.upper()])
+                new_value = int(os.environ.get(key_path, config_fragment[key]))
+                config_fragment[key] = new_value
 
-    def fetch_behaviour_config(self):
-        return self.behaviour_config
+            if isinstance(config_fragment[key], float):
+                key_path = '_'.join([base_path, key.upper()])
+                new_value = float(os.environ.get(key_path, config_fragment[key]))
+                config_fragment[key] = new_value
+
+            if isinstance(config_fragment[key], list):
+                key_path = '_'.join([base_path, key.upper()])
+                new_value = os.environ.get(key_path, config_fragment[key])
+                if isinstance(new_value, str):
+                    new_value = new_value.translate(str.maketrans('', '', whitespace)).split(",")
+
+                config_fragment[key] = new_value
+
+            if isinstance(config_fragment[key], bool):
+                key_path = '_'.join([base_path, key.upper()])
+                new_value = os.environ.get(key_path, config_fragment[key])
+                new_value = bool(distutils.util.strtobool(new_value))
+
+        return config_fragment

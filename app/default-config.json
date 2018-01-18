@@ -1,10 +1,19 @@
 {
   "settings": {
-    "app_mode": "user",
-    "symbol_pairs": [],
+    "log_mode": "text",
+    "market_pairs": [],
     "loglevel": "",
     "update_interval": 300,
     "selected_task": "default"
+  },
+
+  "database": {
+    "engine": "sqlite",
+    "host": "",
+    "port": "",
+    "db_name": "",
+    "username": "",
+    "password": ""
   },
 
   "exchanges": {
@@ -30,8 +39,7 @@
     },
     "slack": {
       "required": {
-        "key": "",
-        "channel": ""
+        "webhook": ""
       }
     },
     "gmail": {
@@ -49,6 +57,43 @@
   },
 
   "behaviours": {
+    "default": {
+      "rsi": {
+        "hot": 30,
+        "cold": 70
+      },
+      "breakout": {
+        "hot": 0.8,
+        "cold": 0.4
+      }
+    },
+    "server": {
 
+    },
+    "rsi_bot": {
+      "mode": "simulate",
+      "open_order_max_hours": 24,
+      "buy": {
+        "rsi_threshold": 30,
+        "trade_limits": {
+          "BTC": 0.02,
+          "ETH": 0.2,
+          "LTC": 1.2,
+          "USDT": 250.0
+        }
+      },
+      "sell": {
+        "rsi_threshold": 70,
+        "trade_limits": {
+          "BTC": 0.02,
+          "ETH": 0.2,
+          "LTC": 1.2,
+          "USDT": 250.0
+        }
+      }
+    },
+    "reporter": {
+      "name": "default"
+    }
   }
 }

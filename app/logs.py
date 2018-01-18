@@ -1,5 +1,4 @@
-"""
-Configure logger
+"""Configure application logger
 """
 
 import sys
@@ -8,16 +7,27 @@ import logging
 import structlog
 from pythonjsonlogger import jsonlogger
 
-def configure_logging(loglevel, app_mode):
-    if not loglevel:
-        loglevel = logging.WARNING
+def configure_logging(loglevel, log_mode):
+    """Configure the application logger
 
-    if app_mode == 'bot':
+    Args:
+        loglevel (str): The level of logging for the application.
+        log_mode (str): What kind of logging output to apply...
+            text: Text logging is intended for users / developers.
+            json: Json logging is intended for parsing with a log aggregation system.
+    """
+
+    if not loglevel:
+        loglevel = logging.INFO
+
+    if log_mode == 'json':
         log_formatter = jsonlogger.JsonFormatter()
-    elif app_mode == 'user':
+    elif log_mode == 'text':
         log_formatter = logging.Formatter('%(message)s')
     else:
-        log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(log_formatter)
